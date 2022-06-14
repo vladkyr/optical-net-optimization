@@ -27,13 +27,11 @@ if __name__ == "__main__":
     print("Total demand to satisfy in entire net: ", sum(demands.loc[:, "Demand"]))
     # revealGraph.plotGraph(nodes, edges)
 
-    links = [f'{e[0]}_{e[1]}' for e in edges]
+    # links = [f'{e[0]}_{e[1]}' for e in edges]
 
-    alg = EvolutionaryAlgorithm(links=links, select_method="TO", range=100, cycles_no=5,
+    alg = EvolutionaryAlgorithm(edges=edges, select_method="TO", range=100, cycles_no=5,
                                 population_size=3, mutation_c=10, target=[10, 10])
 
-    print('EvolutionaryAlgorithm', alg)
+    print('\nchromosome from initial population', alg.population[0].df, '\n')
 
-    print('population', alg.population)
-
-    alg.calculate_solution_cost(alg.population[0])
+    alg.population[0].calculate_solution_cost()

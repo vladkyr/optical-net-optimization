@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 
-from chromosome import create_initial_population
+from chromosome import Chromosome
 
 '''
 Original algorithm: Tomasz Pawlak
@@ -13,7 +13,7 @@ Adjustment to optical net problem: Vladyslav Kyryk
 
 class EvolutionaryAlgorithm:
     def __init__(
-            self, select_method, links, range=100, cycles_no=3,
+            self, select_method, edges, range=100, cycles_no=3,
             population_size=100, mutation_c=10, target=[0, 0]
     ):
         # Globalna definicja wymiarów wszystkich wykresów
@@ -25,12 +25,6 @@ class EvolutionaryAlgorithm:
         self.population_size = population_size
         self.cycles_no = cycles_no
         self.mutation_c = mutation_c
-        self.transponders_list = ['10G', '40G', '100G']
-        self.transponders_cost = {
-            '10G': 1,
-            '40G': 3,
-            '100G': 5
-        }
 
         # Definicja celu skupiania punktów jako dwuelementowa
         # tablica współrzędnych
@@ -38,27 +32,17 @@ class EvolutionaryAlgorithm:
 
         # Inicjacja populacji
         self.population = None
-        self.populate(links)
+        self.populate(edges)
 #         self.draw()
 
         # Wykonanie pętli algorytmu
 #         self.do_cycles(self.cycles_no)
 
-    def populate(self, links):
+    def populate(self, edges):
         """
         Initiates population with random set of transponders
         """
-        self.population = create_initial_population(links, self.transponders_list, self.population_size)
-        
-    def calculate_solution_cost(self, chromosome: pd.DataFrame()):
-        used_transponders = {'10G': 0, '40G': 0, '100G': 0}
-        for index, t_set in chromosome['transponders'].iteritems():
-            for key, value in t_set.items():
-                used_transponders[key] += value
-        print('used_transponders', used_transponders)
-        overall_cost = sum([self.transponders_cost[key] * value for key, value in used_transponders.items()])
-        print('overall_cost', overall_cost)
-        return overall_cost
+        self.population = [Chromosome(edges) for _ in range(self.population_size)]
 
     def fitness(self):
         """
