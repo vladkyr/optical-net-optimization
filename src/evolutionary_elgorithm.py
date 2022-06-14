@@ -1,6 +1,7 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 import os
+import pandas as pd
 
 from chromosome import create_initial_population
 
@@ -13,7 +14,7 @@ Adjustment to optical net problem: Vladyslav Kyryk
 class EvolutionaryAlgorithm:
     def __init__(
             self, select_method, links, range=100, cycles_no=3,
-            population_size=100, mutation_c=10, target = [0,0]
+            population_size=100, mutation_c=10, target=[0, 0]
     ):
         # Globalna definicja wymiarów wszystkich wykresów
         plt.rcParams['figure.figsize'] = [8, 6]
@@ -24,13 +25,19 @@ class EvolutionaryAlgorithm:
         self.population_size = population_size
         self.cycles_no = cycles_no
         self.mutation_c = mutation_c
-        self.transponders = ['10G', '40G', '100G']
+        self.transponders_list = ['10G', '40G', '100G']
+        self.transponders_cost = {
+            '10G': 1,
+            '40G': 3,
+            '100G': 5
+        }
 
         # Definicja celu skupiania punktów jako dwuelementowa
         # tablica współrzędnych
         self.target = np.array(target)
 
         # Inicjacja populacji
+        self.population = None
         self.populate(links)
 #         self.draw()
 
@@ -38,59 +45,29 @@ class EvolutionaryAlgorithm:
 #         self.do_cycles(self.cycles_no)
 
     def populate(self, links):
-        '''
+        """
         Initiates population with random set of transponders
-        '''
-        self.population = create_initial_population(links, self.transponders, self.population_size)
+        """
+        self.population = create_initial_population(links, self.transponders_list, self.population_size)
+        
+    def calculate_solution_cost(self, chromosome: pd.DataFrame()):
+        used_transponders = {'10G': 0, '40G': 0, '100G': 0}
+        for index, t_set in chromosome['transponders'].iteritems():
+            for key, value in t_set.items():
+                used_transponders[key] += value
+        print('used_transponders', used_transponders)
+        overall_cost = sum([self.transponders_cost[key] * value for key, value in used_transponders.items()])
+        print('overall_cost', overall_cost)
+        return overall_cost
 
     def fitness(self):
-        '''
+        """
         Funckja wybiera tą połowę punktów, która zgodnie z daną metodą
         selekcji nadają się do przedłużenia gatunku
-        '''
+        """
         new_gen = []
 
-        if self.sm == "RW":  # Selekcja Ruletkowa
-            x = self.population.reshape(2*len(self.population))
-            p = []
-            # Zbiór omega jest zbiorem wszystkich możliwych promieni
-            # poprowadzonych od wszystkich możliwych dostępnych targetów
-            # Dla promieni większych niż omega uznajemy że prawdopodo-
-            # bieństwo jest równe 0
-            omega = self.range*np.sqrt(2)
-
-            for i in range(len(self.population)):
-                p_i = (omega-(np.sqrt((x[2*i]-self.target[0])**2 + (x[2*i+1]-self.target[1])**2))) / omega
-
-                # Uniknięcie ujemnego prawdopodobieństwa
-                if p_i < 0:
-                    p_i = 0
-                p.append(p_i)
-
-            p = np.array(p)
-            p /= np.sum(p)
-
-            # Dodajemy do tablicy indeks punktu jeśli wylosujemy go z danym
-            # prawdopodobieństwem z tablicy indeksów
-            while len(new_gen) != len(self.population)/2:
-                a = np.random.choice([i for i in range(len(p))], p=p)
-                if (a not in new_gen):
-                    new_gen.append(a)
-
-            return np.array(new_gen)
-
-        elif self.sm == "TH":  # Selekcja Progowa
-            for index, entity in enumerate(self.population):
-                new_gen1 = np.sum((entity-self.target)**2)
-                new_gen.append((new_gen1, index))
-
-            # Bierzemy pod uwagę tylko najlepsze przypadki
-            new_gen = sorted(new_gen)[:int(self.population_size/2)]
-            new_gen = np.array(new_gen)[:, 1]
-
-            return new_gen
-
-        elif self.sm == "TO":  # Selekcja Turniejowa
+        if self.sm == "TO":  # Selekcja Turniejowa
             x = self.population.reshape(2*len(self.population))
             for i in range(int(len(self.population)/2)):
                 # Porównujemy dwa kolejne punkty, lepszy z nich przechodzi
@@ -105,16 +82,14 @@ class EvolutionaryAlgorithm:
         else:
             return(print(
                 "Error: Selection methods\n",
-                "RW - roulette wheel selection\n",
-                "TH - threshold selection\n",
                 "TO - tournament selection\n"
             ))
 
     def selection(self):
-        '''
+        """
         Zwracamy punkty wybrane w funkcji fittest jako nadające się
         do reprodukcji
-        '''
+        """
         fittest = self.fitness()
 
         new_generation = []
@@ -146,20 +121,20 @@ class EvolutionaryAlgorithm:
         return np.array(new_generation)
 
     def mutate(self):
-        '''
+        """
         Funkcja generuje punkty z otoczenia danego punktu w promieniu
         podanym do inicjacji algorytmu jako mutacion_c - stała mutacji
-        '''
+        """
         return self.population + np.random.randint(
             -self.mutation_c, self.mutation_c, 2*self.population_size
         ).reshape(self.population_size, 2)
 
     def do_cycles(self, gens=1):
-        '''
+        """
         Funkcja wykonuje pętle algorytmu ewolucyjnego i znajduje
         osobniki lepsze od poprzedniej generacji. Gens jest liczbą
         pokoleń następujących po inicjacji
-        '''
+        """
         for i in range(gens):
             self.population = self.selection()
             self.population = self.cross()
@@ -170,9 +145,9 @@ class EvolutionaryAlgorithm:
         return self.population
 
     def draw(self):
-        '''
+        """
         Funkcja generuje graf z modułu pyplot
-        '''
+        """
         plt.xlim([-1*self.range, self.range])
         plt.ylim([-1*self.range, self.range])
         plt.scatter(
@@ -185,19 +160,12 @@ class EvolutionaryAlgorithm:
 if __name__ == "__main__":
     '''
     # Typy selekcji:
-    # RW - roulette wheel selection
-    # TH - threshold selection
     # TO - tournament selection
 
-    tmp1 = Evolutionary_Alg(
-        range=100, select_method="TO", cycles_no=15,
-        population_size=1000, mutation_c=10
-        )
-
-    tmp2 = Evolutionary_Alg(
-        range=100, select_method="RW", cycles_no=5,
-        population_size=1000, mutation_c=7
-        )
+    ealg = Evolutionary_Algorithm(
+        #     range=100, select_method="TO", cycles_no=5,
+        #     population_size=1000, mutation_c=10, target=[10, 10]
+        #     )
     '''
     
     # ealg = Evolutionary_Algorithm(

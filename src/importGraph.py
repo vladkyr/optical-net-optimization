@@ -4,7 +4,7 @@ import pandas as pd
 def get_data_from_file(rel_path, network_nodes, network_edges, network_demands, rows_to_skip):
     with open(rel_path, 'r') as f:
         nodes = pd.read_csv(f, nrows=network_nodes, skiprows=rows_to_skip[0] - 1, header=None, delimiter=" ")
-        nodes.drop([0, 1, 3, 6], inplace=True, axis=1)
+        nodes = nodes[[2, 4, 5]]
         nodes.columns = ["City", "X", "Y"]
         nodes["City"].astype("string")
         nodes["X"].astype("float")
@@ -14,7 +14,7 @@ def get_data_from_file(rel_path, network_nodes, network_edges, network_demands, 
         edges = pd.read_csv(
             f, nrows=network_edges, skiprows=rows_to_skip[0] + rows_to_skip[1] + network_nodes - 1,
             header=None, delimiter=" ")
-        edges.drop([0, 1, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14], inplace=True, axis=1)
+        edges = edges[[2, 4, 5]]
         edges.columns = ["Edge_Name", "CityA", "CityB"]
         edges["Edge_Name"].astype("string")
         edges["CityA"].astype("string")
@@ -25,7 +25,7 @@ def get_data_from_file(rel_path, network_nodes, network_edges, network_demands, 
             f, nrows=network_demands,
             skiprows=rows_to_skip[0] + rows_to_skip[1] + rows_to_skip[2] + network_nodes + network_edges - 1,
             header=None, delimiter=" ")
-        demands.drop([0, 1, 2, 3, 6, 7, 9], inplace=True, axis=1)
+        demands = demands[[4, 5, 8]]
         demands.columns = ["CityA", "CityB", "Demand"]
         demands["CityA"].astype("string")
         demands["CityB"].astype("string")
