@@ -4,7 +4,11 @@ import pandas as pd
 def get_data_from_file(rel_path, network_nodes, network_edges, network_demands, rows_to_skip):
     with open(rel_path, 'r') as f:
         nodes = pd.read_csv(f, nrows=network_nodes, skiprows=rows_to_skip[0] - 1, header=None, delimiter=" ")
-    nodes = nodes[2].to_list()
+    nodes = nodes[[2, 4, 5]]
+    nodes.columns = ["City", "X", "Y"]
+    nodes["City"].astype("string")
+    nodes["X"].astype("float")
+    nodes["Y"].astype("float")
 
     with open(rel_path, 'r') as f:
         edges = pd.read_csv(
