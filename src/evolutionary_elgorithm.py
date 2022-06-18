@@ -1,6 +1,7 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import random
+import networkx as nx
+
+import pandas as pd
 
 from chromosome import Chromosome
 
@@ -10,36 +11,51 @@ Adjustment to optical net problem: Vladyslav Kyryk
 '''
 
 
+def get_possible_paths_for_demand(graph: nx.Graph, city_a: str, city_b: str, k_paths: int):
+    """
+    Creates a set of k possible paths through which demand can be satisfied.
+    Originally created to be used in pandas.DataFrame.apply function
+    :param graph: networkx graph with defined edges between cities
+    :param city_a: source
+    :param city_b: destination
+    :param k_paths: number of paths to create
+    :return: list of possible paths for demand
+    """
+    # TODO: implement apply function
+    return []
+
+
 class EvolutionaryAlgorithm:
     def __init__(
-            self, select_method, edges, range_r=100, cycles_no=3,
-            population_size=100, mutation_c=10, target=[0, 0],
-            gene_replacement_probability=0.5
+            self, edges: pd.DataFrame, demands: pd.DataFrame,
+            range_r: int = 100, cycles_no: int = 3,
+            population_size: int = 100, mutation_c: int = 10,
+            gene_replacement_probability: float = 0.5,
+            select_method: str = 'TO',
+            number_of_paths_per_demand: int = 3
     ):
-        # Globalna definicja wymiarów wszystkich wykresów
-        plt.rcParams['figure.figsize'] = [8, 6]
 
-        # Definicja parametrów
-        self.sm = select_method
         self.range = range_r
         self.population_size = population_size
         self.cycles_no = cycles_no
         self.mutation_c = mutation_c
         self.gene_replacement_probability = gene_replacement_probability
+        self.selection_method = select_method
 
-        # Definicja celu skupiania punktów jako dwuelementowa
-        # tablica współrzędnych
-        self.target = np.array(target)
+        # Create set of predefined paths for each demand
+        self.demands = demands.copy(deep=True)
+        net_graph = nx.from_pandas_edgelist(edges, source='CityA', target='CityB')
+        self.demands['possible_paths'] = self.demands.apply(lambda demand: get_possible_paths_for_demand(net_graph,
+                                                                                                         city_a=demand['CityA'],
+                                                                                                         city_b=demand['CityB'],
+                                                                                                         k_paths=number_of_paths_per_demand),
+                                                            axis=1)
+        print('self.demands', self.demands)
 
-        # Inicjacja populacji z losowym zestawem transponderów
-        self.population = []
-        for _ in range(population_size):
-            new_c = Chromosome(edges)
-            # print('edges', edges)
-            self.population.append(new_c)
-        #         self.draw()
+        # Initiate population with random transponders set
+        self.population = [Chromosome(edges) for _ in range(population_size)]
 
-        # Wykonanie pętli algorytmu
+        # Main algorithm's loop
         self.do_cycles(self.cycles_no)
 
     def selection(self):
@@ -49,7 +65,7 @@ class EvolutionaryAlgorithm:
         """
         new_gen = []
 
-        if self.sm == "TO":  # Selekcja Turniejowa
+        if self.selection_method == 'TO':  # Selekcja Turniejowa
             for i in range(int(len(self.population) / 2)):
                 # Porównujemy dwa kolejne punkty, lepszy z nich przechodzi
                 # dalej i zostaje w populacji
@@ -76,14 +92,8 @@ class EvolutionaryAlgorithm:
 
         def apply_func(city_a, city_b, transponders_set, other_parent, p_e):
             """
-
-            :param transponders_set:
-            :param city_b:
-            :param city_a:
-            :param row:
-            :param other_parent:
-            :param p_e: probability of gene_replacement
-            :return:
+            p_e: probability of gene_replacement
+            :return: dict - set of transponders with quantities
             """
             if random.SystemRandom().uniform(0, 1) < p_e:
                 return transponders_set
@@ -99,7 +109,7 @@ class EvolutionaryAlgorithm:
             # print('parent y:', y.df)
 
             # copy DataFrame of parent x for offspring
-            offspring_df = x.df
+            offspring_df = x.df.copy(deep=True)
 
             # insert transponders from y to x under certain probability
             offspring_df['transponders'] = offspring_df.apply(lambda e: apply_func(e['CityA'], e['CityB'],
@@ -117,7 +127,8 @@ class EvolutionaryAlgorithm:
         Funkcja generuje punkty z otoczenia danego punktu w promieniu
         podanym do inicjacji algorytmu jako mutacion_c - stała mutacji
         """
-        print('Mutacja jeszcze nie zaimplementowana!')
+        # TODO: Mutation implementation
+        print('Mutate function is not implemented yet!')
         return self.population
         # return self.population + np.random.randint(
         #     -self.mutation_c, self.mutation_c, 2*self.population_size
@@ -130,25 +141,13 @@ class EvolutionaryAlgorithm:
         pokoleń następujących po inicjacji
         """
         for i in range(gens):
+            # Czy poprawna kolejność?
+            #  TODO: Sprawdzić czy nie musi być cross -> mutate -> select
             self.population = self.selection()
             self.population = self.cross()
             self.population = self.mutate()
 
-            # self.draw()
-
         return self.population
-
-    def draw(self):
-        """
-        Funkcja generuje graf z modułu pyplot
-        """
-        plt.xlim([-1 * self.range, self.range])
-        plt.ylim([-1 * self.range, self.range])
-        plt.scatter(
-            self.population[:, 0], self.population[:, 1], c='green', s=12
-        )
-        plt.scatter(self.target[0], self.target[1], c='red', s=60)
-        plt.show()
 
     def select_best_chromosome(self):
         min_cost = 99999999
@@ -159,22 +158,3 @@ class EvolutionaryAlgorithm:
                 min_cost = cost
                 best_chromosome = c
         return best_chromosome, min_cost
-
-
-if __name__ == "__main__":
-    '''
-    # Typy selekcji:
-    # TO - tournament selection
-
-    ealg = Evolutionary_Algorithm(
-        #     range=100, select_method="TO", cycles_no=5,
-        #     population_size=1000, mutation_c=10, target=[10, 10]
-        #     )
-    '''
-
-    # ealg = Evolutionary_Algorithm(
-    #     range=100, select_method="TO", cycles_no=5,
-    #     population_size=1000, mutation_c=10, target=[10, 10]
-    #     )
-    #
-    # print('population', ealg.population)

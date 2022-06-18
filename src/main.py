@@ -30,8 +30,12 @@ if __name__ == "__main__":
     reveal_graph.plot_interactive_graph(edges)
     # reveal_graph.plot_graph(nodes, list(edges.itertuples(index=False, name=None)))
 
-    alg = EvolutionaryAlgorithm(edges=edges, select_method="TO", range_r=100, cycles_no=5,
-                                population_size=20, mutation_c=10, target=[10, 10])
+    alg = EvolutionaryAlgorithm(edges=edges, demands=demands,
+                                range_r=100, cycles_no=5,
+                                population_size=20, mutation_c=10,
+                                gene_replacement_probability=0.5,
+                                select_method='TO',
+                                number_of_paths_per_demand=3)
 
     # print('\nchromosome from initial population', alg.population[0].df, '\n')
 
