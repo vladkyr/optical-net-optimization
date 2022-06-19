@@ -1,7 +1,8 @@
 import random
 import networkx as nx
-
 import pandas as pd
+from typing import List
+
 from chromosome import Chromosome
 
 '''
@@ -33,15 +34,15 @@ def get_possible_paths_for_demand(graph: nx.Graph, city_a: str, city_b: str, k_p
 class EvolutionaryAlgorithm:
     def __init__(
             self, edges: pd.DataFrame, demands: pd.DataFrame,
-            cycles_no: int = 3,
-            initial_population_size: int = 100, mutation_probability: float = 0.5,
+            cycles_no: int = 3, mi_size: int = 10, lambda_size: int = 10,
+            mutation_probability: float = 0.5,
             gene_replacement_probability: float = 0.5,
-            select_method: str = 'TO',
-            number_of_paths_per_demand: int = 2
+            number_of_paths_per_demand: int = 2,
+            select_method: str = 'RS'
     ):
-
-        self.initial_population_size = initial_population_size
         self.cycles_no = cycles_no
+        self.mi_size = mi_size  # µ - algorithm hyperparameter
+        self.lambda_size = lambda_size  # λ - algorithm hyperparameter
         self.mutation_probability = mutation_probability
         self.gene_replacement_probability = gene_replacement_probability
         self.selection_method = select_method
@@ -57,13 +58,10 @@ class EvolutionaryAlgorithm:
                                                                                                              'CityB'],
                                                                                                          k_paths=number_of_paths_per_demand),
                                                             axis=1)
-        # print('self.demands\n', self.demands)
-        # print(self.demands.iloc[0]['possible_paths'])
-        # print(self.demands.iloc[1]['possible_paths'])
 
         # Initiate population with random transponders set
-        self.population = [Chromosome(self.demands) for _ in range(initial_population_size)]
-        self.best_so_far = self.find_best_in_current_population()  # tuple of (Chromosome, cost) - best solution over all iterations
+        self.population = [Chromosome(self.demands) for _ in range(self.mi_size)]
+        self.best_so_far = self.find_best_in_current_population()  # best_so_far - tuple of (Chromosome, cost)
         print('Cost of best solution in initial population:', self.best_so_far[1])
 
     def selection(self):
@@ -71,9 +69,12 @@ class EvolutionaryAlgorithm:
         Function cuts best points from selection and mutation in aim of 
         continue population of the best points
         """
-        new_gen = []
 
-        if self.selection_method == 'TO':  # Tournament Selection
+        if self.selection_method == 'RS':  # Random Selection
+            return random.SystemRandom().choices(self.population, k=self.lambda_size)
+        elif self.selection_method == 'TO':  # Tournament Selection
+            new_gen = []
+            print('population size', len(self.population))
             for i in range(int(len(self.population) / 4)):
                 # Porównujemy 4 kolejne punkty, najlepszy z nich przechodzi
                 # dalej i zostaje w populacji
@@ -84,6 +85,7 @@ class EvolutionaryAlgorithm:
                     if costs[j] == min(costs):
                         new_gen.append(self.population[4 * i + j])
                         break
+            print('new_gen size', len(new_gen))
             return new_gen
         else:
             return (print(
@@ -91,7 +93,7 @@ class EvolutionaryAlgorithm:
                 "TO - tournament selection\n"
             ))
 
-    def cross(self):
+    def cross(self, offspring: List[Chromosome]):
         """
         Generuje nową populację krzyżując stare wartości osobników ze sobą, a
         potem przypisując ich wartości do nowych encji, które potem zostają
@@ -112,38 +114,49 @@ class EvolutionaryAlgorithm:
                 return parent_y.loc[
                     (parent_y['CityA'] == city_a) & (parent_y['CityB'] == city_b), 'chosen_path'].iloc[0]
 
-        for i in range(self.initial_population_size * offspring_number):
-            x = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
-            y = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
+        for i in range(self.lambda_size):
+            x = offspring[random.SystemRandom().randint(0, len(offspring) - 1)]
+            y = offspring[random.SystemRandom().randint(0, len(offspring) - 1)]
 
             # copy DataFrame of parent x for offspring
-            offspring_df = x.df.copy(deep=True)
+            child_df = x.df.copy(deep=True)
 
             # insert transponders from y to x under certain probability
-            offspring_df['chosen_path'] = offspring_df.apply(lambda e: apply_func(e['CityA'], e['CityB'],
-                                                                                  e['chosen_path'], y.df,
-                                                                                  self.gene_replacement_probability),
-                                                             axis=1)
+            child_df['chosen_path'] = child_df.apply(lambda e: apply_func(e['CityA'], e['CityB'],
+                                                                          e['chosen_path'], y.df,
+                                                                          self.gene_replacement_probability),
+                                                     axis=1)
 
             # print('parent x:', x.df)
             # print('parent y:', y.df)
-            # print('offspring:', offspring_df)
-            new_generation.append(Chromosome(offspring_df))
+            # print('child:', child_df)
+            new_generation.append(Chromosome(child_df))
 
         return new_generation
 
-    def mutate(self):
+    def mutate(self, new_generation: List[Chromosome]):
         """
         Funkcja generuje odchyły od punktu, czyli zmiany w ilości 
         transponderów w chromosomie zgodnie z rozkładem normalnym 
         o wariancji równej mutation_variance
         """
-        mutants = self.population.copy()
+        mutants = new_generation.copy()
         for chromosome in mutants:
             # each demand is mutated separately with predefined mutation_probability
             if random.SystemRandom().uniform(0, 1) < self.mutation_probability:
                 chromosome.choose_random_path()
-        return self.population + mutants
+        return mutants
+
+    def select_best_chromosomes_for_new_population(self, mutants: List[Chromosome]):
+        pairs = []
+        for c in self.population + mutants:
+            pairs.append((c, c.calculate_solution_cost()[0]))
+        pairs.sort(key=lambda x: x[1], reverse=True)
+        self.population = [p[0] for p in pairs][:self.mi_size]
+        current_best, current_best_cost = pairs[0]
+        # update best solution
+        if current_best_cost < self.best_so_far[1]:
+            self.best_so_far = (current_best, current_best_cost)
 
     def do_cycles(self):
         """
@@ -153,18 +166,16 @@ class EvolutionaryAlgorithm:
         """
         for i in range(self.cycles_no):
             # print('population size at cycle start', len(self.population))
-            self.population = self.cross()
-            self.population = self.mutate()
-            self.population = self.selection()
-            current_best, current_best_cost = self.find_best_in_current_population()
-            # update best solution
-            if self.best_so_far is None or current_best_cost < self.best_so_far[1]:
-                self.best_so_far = (current_best, current_best_cost)
+            offspring = self.selection()
+            crossed_offspring = self.cross(offspring)
+            mutants = self.mutate(crossed_offspring)
+            self.select_best_chromosomes_for_new_population(mutants)
+
             if self.cycles_no < 10 or (i % int(self.cycles_no / 10) == 0):
                 print(f'completed cycle {i}')
                 self.best_specimen_after_cycles.append((i, self.best_so_far[1]))
 
-        return self.population
+        return self.best_so_far
 
     def find_best_in_current_population(self):
         min_cost = float('inf')  # set initial value of min cost to infinity
