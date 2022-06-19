@@ -80,17 +80,28 @@ class Chromosome:
             chosen_path = row['chosen_path']
             for a, b in pairwise(chosen_path):  # iterate over pairs of cities
                 if (a, b) not in demand_per_edge:
-                    demand_per_edge[(a, b)] = 0
-                demand_per_edge[(a, b)] += demand
-        # print('demand_per_edge', demand_per_edge)
-        # print('total demand on all edges', sum(demand_per_edge.values()))
-        for (a, b), demand in demand_per_edge.items():
+                    demand_per_edge[(a, b)] = {}
+                    demand_per_edge[(a, b)]['demand'] = 0
+                    demand_per_edge[(a, b)]['channels_used'] = 0
+                demand_per_edge[(a, b)]['demand'] += demand
+                demand_per_edge[(a, b)]['channels_used'] += 1
+        for edge in demand_per_edge.keys():
+            demand = demand_per_edge[edge]['demand']
+            channels_used = demand_per_edge[edge]['channels_used']
             transponders_set, cost = find_cheapest_set_of_transponders_for_edge(demand, self.transponders_cost)
+
+            # check if number of needed channels per edge is not exceeded
+            number_of_transponders = sum(transponders_set.values())
+            number_of_channels = number_of_transponders * self.lambda_num
+            while channels_used > number_of_channels:
+                print('not enough channels on edge, adding one more 10G transponder to increase throughput...')
+                transponders_set['10G'] += 1
+                number_of_channels += self.lambda_num
+                cost += 1
+
             for key, value in transponders_set.items():
                 used_transponders[key] += value
             overall_cost += cost
-        # print('overall_cost', overall_cost)
-        # print('used_transponders', used_transponders)
         self.cost = overall_cost
         self.transponders = used_transponders
         return overall_cost, used_transponders

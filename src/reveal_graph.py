@@ -53,6 +53,7 @@ def plot_multiple_lines(cost_lists: List[Tuple[List[Tuple[int, int]], int, int]]
     plt.xlabel("Iterations")
     plt.ylabel("Cost of solution")
     plt.title("Change of min cost over cycles")
+    plt.legend()
     if file_name == '':
         file_name = f'Costs_plot_{time.time()-1656000000}'
     plt.savefig(f'./plots/{file_name}.png')

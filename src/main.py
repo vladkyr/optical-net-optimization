@@ -47,7 +47,8 @@ if __name__ == "__main__":
         reveal_graph.plot_cost(alg.best_specimen_after_cycles)
     else:
         mi_set = [100]
-        lambda_set = [10, 20, 50, 100, 200, 500]
+        # lambda_set = [10, 20, 50, 100, 200, 500]
+        lambda_set = [10, 20, 50]
         opt = Optimizer(mi_set=mi_set, lambda_set=lambda_set,
-                        cycles_num=10, edges=edges, demands=demands)
+                        cycles_num=10, edges=edges, demands=demands, plots_folder_name='mut0.75')
         opt.optimize(parallelize=parallelize)
