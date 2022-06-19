@@ -31,8 +31,8 @@ if __name__ == "__main__":
     # reveal_graph.plot_graph(nodes, list(edges.itertuples(index=False, name=None)))
 
     alg = EvolutionaryAlgorithm(edges=edges, demands=demands,
-                                cycles_no=500,
-                                initial_population_size=10, mutation_variance=0.2,
+                                cycles_no=20,
+                                initial_population_size=10,
                                 gene_replacement_probability=0.5,
                                 select_method='TO',
                                 number_of_paths_per_demand=3)
@@ -43,3 +43,4 @@ if __name__ == "__main__":
     print('best_specimen after all cycles completed:\n', best_specimen.df)
 
     alg.best_after_cycles()
+    reveal_graph.plot_cost(alg.best_specimen_after_cycles)

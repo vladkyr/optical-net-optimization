@@ -1,6 +1,7 @@
 import networkx as nx
 from pyvis.network import Network
 import matplotlib.pyplot as plt
+import numpy as np
 
 graph_file = 'graph.html'
 
@@ -27,3 +28,14 @@ def plot_graph(nodes, edges):
         font_size=8, font_color="#3E424B", font_weight="bold", node_size=50
     )
     plt.show()
+
+
+def plot_cost(cost_list):
+    cost_list = np.array(cost_list)
+    plt.plot(cost_list[:,0], cost_list[:, 1], color = 'g', 
+        linestyle = "dashed", linewidth = 2)
+    plt.xlabel("Iterations")
+    plt.ylabel("Cost of connection")
+    plt.title("Change of min cost over cycles")
+    plt.show()
+    plt.savefig("./src/Costs.png")

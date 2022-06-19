@@ -160,7 +160,6 @@ class EvolutionaryAlgorithm:
     def select_best_chromosome(self):
         min_cost = float('inf')  # set initial value of min cost to infinity
         best_chromosome = None
-        print(self.population)
         for c in self.population:
             cost = c.calculate_solution_cost()
             if cost < min_cost:
