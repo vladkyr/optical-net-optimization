@@ -36,7 +36,7 @@ if __name__ == "__main__":
                                 mutation_probability=0.5,
                                 gene_replacement_probability=0.5,
                                 number_of_paths_per_demand=2,
-                                select_method='BS')
+                                select_method='RS')
     # Main algorithm's loop
     best_solution_found = alg.do_cycles()
 

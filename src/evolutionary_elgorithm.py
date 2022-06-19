@@ -146,7 +146,7 @@ class EvolutionaryAlgorithm:
         pairs = []
         for c in self.population + mutants:
             pairs.append((c, c.calculate_solution_cost()[0]))
-        pairs.sort(key=lambda x: x[1], reverse=True)
+        pairs.sort(key=lambda x: x[1])
         self.population = [p[0] for p in pairs][:self.mi_size]
         current_best, current_best_cost = pairs[0]
         # update best solution
@@ -171,6 +171,7 @@ class EvolutionaryAlgorithm:
             if self.cycles_no < 10 or (i % int(self.cycles_no / 10) == 0):
                 print(f'completed cycle {i}')
                 self.best_specimen_after_cycles.append((i, self.best_so_far[1]))
+                print('current min cost:', self.best_so_far[1])
 
         return self.best_so_far
 
