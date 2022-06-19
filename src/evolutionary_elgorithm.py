@@ -1,9 +1,7 @@
-from cmath import inf
 import random
 import networkx as nx
 
 import pandas as pd
-import numpy as np
 from chromosome import Chromosome
 
 '''
@@ -26,15 +24,17 @@ def get_possible_paths_for_demand(graph: nx.Graph, city_a: str, city_b: str, k_p
     if len(shortest_paths) >= k_paths:
         return shortest_paths[:k_paths]
     else:
-        simple_paths = [p for p in nx.shortest_simple_paths(G=graph, source=city_a, target=city_b) if p not in shortest_paths]
-        return shortest_paths + simple_paths[:k_paths-len(shortest_paths)]  # add to shortest_paths lacking amount of paths
+        simple_paths = [p for p in nx.shortest_simple_paths(G=graph, source=city_a, target=city_b) if
+                        p not in shortest_paths]
+        return shortest_paths + simple_paths[
+                                :k_paths - len(shortest_paths)]  # add to shortest_paths lacking amount of paths
 
 
 class EvolutionaryAlgorithm:
     def __init__(
             self, edges: pd.DataFrame, demands: pd.DataFrame,
             cycles_no: int = 3,
-            initial_population_size: int = 100, mutation_variance: float = 0.1,
+            initial_population_size: int = 100, mutation_probability: float = 0.5,
             gene_replacement_probability: float = 0.5,
             select_method: str = 'TO',
             number_of_paths_per_demand: int = 2
@@ -42,7 +42,7 @@ class EvolutionaryAlgorithm:
 
         self.initial_population_size = initial_population_size
         self.cycles_no = cycles_no
-        self.mutation_variance = mutation_variance
+        self.mutation_probability = mutation_probability
         self.gene_replacement_probability = gene_replacement_probability
         self.selection_method = select_method
         self.best_specimen_after_cycles = []
@@ -63,6 +63,8 @@ class EvolutionaryAlgorithm:
 
         # Initiate population with random transponders set
         self.population = [Chromosome(self.demands) for _ in range(initial_population_size)]
+        self.best_so_far = self.find_best_in_current_population()  # tuple of (Chromosome, cost) - best solution over all iterations
+        print('Cost of best solution in initial population:', self.best_so_far[1])
 
     def selection(self):
         """
@@ -77,10 +79,11 @@ class EvolutionaryAlgorithm:
                 # dalej i zostaje w populacji
                 costs = []
                 for j in range(4):
-                    costs.append(self.population[4 * i + j].calculate_solution_cost())
+                    costs.append(self.population[4 * i + j].calculate_solution_cost()[0])
                 for j in range(4):
                     if costs[j] == min(costs):
                         new_gen.append(self.population[4 * i + j])
+                        break
             return new_gen
         else:
             return (print(
@@ -109,7 +112,7 @@ class EvolutionaryAlgorithm:
                 return parent_y.loc[
                     (parent_y['CityA'] == city_a) & (parent_y['CityB'] == city_b), 'chosen_path'].iloc[0]
 
-        for i in range(self.initial_population_size*offspring_number):
+        for i in range(self.initial_population_size * offspring_number):
             x = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
             y = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
 
@@ -117,10 +120,10 @@ class EvolutionaryAlgorithm:
             offspring_df = x.df.copy(deep=True)
 
             # insert transponders from y to x under certain probability
-            offspring_df['transponders'] = offspring_df.apply(lambda e: apply_func(e['CityA'], e['CityB'],
-                                                                                   e['chosen_path'], y.df,
-                                                                                   self.gene_replacement_probability),
-                                                              axis=1)
+            offspring_df['chosen_path'] = offspring_df.apply(lambda e: apply_func(e['CityA'], e['CityB'],
+                                                                                  e['chosen_path'], y.df,
+                                                                                  self.gene_replacement_probability),
+                                                             axis=1)
 
             # print('parent x:', x.df)
             # print('parent y:', y.df)
@@ -137,7 +140,9 @@ class EvolutionaryAlgorithm:
         """
         mutants = self.population.copy()
         for chromosome in mutants:
-            chromosome.choose_random_path()
+            # each demand is mutated separately with predefined mutation_probability
+            if random.SystemRandom().uniform(0, 1) < self.mutation_probability:
+                chromosome.choose_random_path()
         return self.population + mutants
 
     def do_cycles(self):
@@ -147,28 +152,31 @@ class EvolutionaryAlgorithm:
         pokoleń następujących po inicjacji
         """
         for i in range(self.cycles_no):
-            print('population size at cycle start', len(self.population))
+            # print('population size at cycle start', len(self.population))
             self.population = self.cross()
             self.population = self.mutate()
             self.population = self.selection()
-            if i > 0 and i % int(self.cycles_no/10) == 0:
+            current_best, current_best_cost = self.find_best_in_current_population()
+            # update best solution
+            if self.best_so_far is None or current_best_cost < self.best_so_far[1]:
+                self.best_so_far = (current_best, current_best_cost)
+            if self.cycles_no < 10 or (i % int(self.cycles_no / 10) == 0):
                 print(f'completed cycle {i}')
-                self.best_specimen_after_cycles.append((i, self.select_best_chromosome()[1]))
+                self.best_specimen_after_cycles.append((i, self.best_so_far[1]))
 
         return self.population
 
-    def select_best_chromosome(self):
+    def find_best_in_current_population(self):
         min_cost = float('inf')  # set initial value of min cost to infinity
         best_chromosome = None
-        print(self.population)
         for c in self.population:
-            cost = c.calculate_solution_cost()
+            cost, _ = c.calculate_solution_cost()
             if cost < min_cost:
                 min_cost = cost
                 best_chromosome = c
         return best_chromosome, min_cost
 
-    def best_after_cycles(self):
-        print(f"Change of min cost over cycles:\n", '\tcycle : cost')
+    def change_of_min_cost_over_cycles(self):
+        print(f"\nChange of min cost over cycles:\n", '\tcycle : cost')
         for i, cost in self.best_specimen_after_cycles:
             print("\t", i, ": ", cost)

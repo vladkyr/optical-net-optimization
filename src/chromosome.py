@@ -72,8 +72,10 @@ class Chromosome:
 
         if 'chosen_path' not in self.df.columns:  # chromosome from initial population
             self.choose_random_path()
+        self.cost, self.transponders = self.calculate_solution_cost()
 
     def calculate_solution_cost(self):
+        used_transponders = {'10G': 0, '40G': 0, '100G': 0}
         overall_cost = 0
         demand_per_edge = {}  # key - (CityA, CityB), value - sum of demands on this edge
         for index, row in self.df.iterrows():
@@ -87,9 +89,14 @@ class Chromosome:
         # print('total demand on all edges', sum(demand_per_edge.values()))
         for (a, b), demand in demand_per_edge.items():
             transponders_set, cost = find_cheapest_set_of_transponders_for_edge(demand, self.transponders_cost)
+            for key, value in transponders_set.items():
+                used_transponders[key] += value
             overall_cost += cost
         # print('overall_cost', overall_cost)
-        return overall_cost
+        # print('used_transponders', used_transponders)
+        self.cost = overall_cost
+        self.transponders = used_transponders
+        return overall_cost, used_transponders
 
     def choose_random_path(self):
         # select randomly a path for each demand

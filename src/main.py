@@ -31,15 +31,15 @@ if __name__ == "__main__":
     # reveal_graph.plot_graph(nodes, list(edges.itertuples(index=False, name=None)))
 
     alg = EvolutionaryAlgorithm(edges=edges, demands=demands,
-                                cycles_no=500,
-                                initial_population_size=10, mutation_variance=0.2,
+                                cycles_no=10,
+                                initial_population_size=10, mutation_probability=0.5,
                                 gene_replacement_probability=0.5,
                                 select_method='TO',
                                 number_of_paths_per_demand=3)
     # Main algorithm's loop
     final_population = alg.do_cycles()
 
-    best_specimen, min_cost = alg.select_best_chromosome()
-    print('best_specimen after all cycles completed:\n', best_specimen.df)
+    best_specimen, min_cost = alg.find_best_in_current_population()
+    print('\nbest_specimen after all cycles completed:\n', best_specimen.df.columns)
 
-    alg.best_after_cycles()
+    alg.change_of_min_cost_over_cycles()
