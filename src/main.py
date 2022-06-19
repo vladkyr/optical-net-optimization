@@ -31,8 +31,8 @@ if __name__ == "__main__":
     # reveal_graph.plot_graph(nodes, list(edges.itertuples(index=False, name=None)))
 
     alg = EvolutionaryAlgorithm(edges=edges, demands=demands,
-                                range_r=100, cycles_no=5,
-                                population_size=20, mutation_c=10,
+                                range_r=100, cycles_no=1000,
+                                population_size=10, mutation_variance=0.2,
                                 gene_replacement_probability=0.5,
                                 select_method='TO',
                                 number_of_paths_per_demand=3)
@@ -42,5 +42,8 @@ if __name__ == "__main__":
     # alg.population[0].calculate_solution_cost()
 
     best_specimen, min_cost = alg.select_best_chromosome()
-    print('best_specimen:', best_specimen.df)
-    print('min_cost:', min_cost)
+
+
+    print('best_specimen:\n', best_specimen.df)
+    alg.bests_after_cycles()
+    print('Total min_cost:', min_cost)
