@@ -62,7 +62,7 @@ class EvolutionaryAlgorithm:
         # print(self.demands.iloc[1]['possible_paths'])
 
         # Initiate population with random transponders set
-        self.population = [Chromosome(edges) for _ in range(initial_population_size)]
+        self.population = [Chromosome(self.demands) for _ in range(initial_population_size)]
 
     def selection(self):
         """
@@ -96,34 +96,34 @@ class EvolutionaryAlgorithm:
         połowy długości tabel aby uzyskać lepsze pomieszanie cech.
         """
         new_generation = []
+        offspring_number = 2
 
-        def apply_func(city_a, city_b, transponders_set, other_parent, p_e):
+        def apply_func(city_a, city_b, chosen_path_parent_x, parent_y, p_e):
             """
             p_e: probability of gene_replacement
-            :return: dict - set of transponders with quantities
+            :return: list - chosen_path from one of the parents
             """
             if random.SystemRandom().uniform(0, 1) < p_e:
-                return transponders_set
+                return chosen_path_parent_x
             else:
-                return other_parent.loc[
-                    (other_parent['CityA'] == city_a) & (other_parent['CityB'] == city_b), 'transponders'].iloc[0]
+                return parent_y.loc[
+                    (parent_y['CityA'] == city_a) & (parent_y['CityB'] == city_b), 'chosen_path'].iloc[0]
 
-        for i in range(self.initial_population_size):
+        for i in range(self.initial_population_size*offspring_number):
             x = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
             y = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
-
-            # print('parent x:', x.df)
-            # print('parent y:', y.df)
 
             # copy DataFrame of parent x for offspring
             offspring_df = x.df.copy(deep=True)
 
             # insert transponders from y to x under certain probability
             offspring_df['transponders'] = offspring_df.apply(lambda e: apply_func(e['CityA'], e['CityB'],
-                                                                                   e['transponders'], y.df,
+                                                                                   e['chosen_path'], y.df,
                                                                                    self.gene_replacement_probability),
                                                               axis=1)
 
+            # print('parent x:', x.df)
+            # print('parent y:', y.df)
             # print('offspring:', offspring_df)
             new_generation.append(Chromosome(offspring_df))
 
@@ -135,14 +135,9 @@ class EvolutionaryAlgorithm:
         transponderów w chromosomie zgodnie z rozkładem normalnym 
         o wariancji równej mutation_variance
         """
-        mutants = self.population
-        for i in range(len(self.population)):
-            for j in mutants[i].df["transponders"]:
-                j["10G"] += int(np.random.normal(0, self.mutation_variance))
-                j["40G"] += int(np.random.normal(0, self.mutation_variance))
-                j["100G"] += int(np.random.normal(0, self.mutation_variance))
-            mutants.append(self.population[i])
-
+        mutants = self.population.copy()
+        for chromosome in mutants:
+            chromosome.choose_random_path()
         return self.population + mutants
 
     def do_cycles(self):
@@ -152,7 +147,7 @@ class EvolutionaryAlgorithm:
         pokoleń następujących po inicjacji
         """
         for i in range(self.cycles_no):
-            # print('population size at cycle start', len(self.population))
+            print('population size at cycle start', len(self.population))
             self.population = self.cross()
             self.population = self.mutate()
             self.population = self.selection()
@@ -165,6 +160,7 @@ class EvolutionaryAlgorithm:
     def select_best_chromosome(self):
         min_cost = float('inf')  # set initial value of min cost to infinity
         best_chromosome = None
+        print(self.population)
         for c in self.population:
             cost = c.calculate_solution_cost()
             if cost < min_cost:
