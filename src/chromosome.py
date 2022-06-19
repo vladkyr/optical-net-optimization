@@ -24,10 +24,10 @@ class Chromosome:
         if 'transponders' not in self.df.columns:
             self.df['transponders'] = [select_random_transformers_set(self.transponders_list) for _ in
                                        range(entry_df.shape[0])]
-        for i in self.df['transponders']:
-            for t in self.transponders_list:
-                if t not in i:
-                    i[t] = 0
+        for transponders_set in self.df['transponders']:
+            for transponder in self.transponders_list:
+                if transponder not in transponders_set:
+                    transponders_set[transponder] = 0
 
     def calculate_solution_cost(self):
         used_transponders = {'10G': 0, '40G': 0, '100G': 0}
@@ -38,3 +38,6 @@ class Chromosome:
         overall_cost = sum([self.transponders_cost[key] * value for key, value in used_transponders.items()])
         # print('overall_cost', overall_cost)
         return overall_cost
+
+    def check_demands_fulfillment(self, demands: pd.DataFrame) -> bool:
+        pass

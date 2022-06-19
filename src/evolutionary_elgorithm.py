@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 from chromosome import Chromosome
 
-
 '''
 Original algorithm: Tomasz Pawlak
 Adjustment to optical net problem: Vladyslav Kyryk
@@ -23,43 +22,47 @@ def get_possible_paths_for_demand(graph: nx.Graph, city_a: str, city_b: str, k_p
     :param k_paths: number of paths to create
     :return: list of possible paths for demand
     """
-    # TODO: implement apply function
-    return []
+    shortest_paths = [p for p in nx.all_shortest_paths(G=graph, source=city_a, target=city_b)]
+    if len(shortest_paths) >= k_paths:
+        return shortest_paths[:k_paths]
+    else:
+        simple_paths = [p for p in nx.shortest_simple_paths(G=graph, source=city_a, target=city_b) if p not in shortest_paths]
+        return shortest_paths + simple_paths[:k_paths-len(shortest_paths)]  # add to shortest_paths lacking amount of paths
 
 
 class EvolutionaryAlgorithm:
     def __init__(
             self, edges: pd.DataFrame, demands: pd.DataFrame,
-            range_r: int = 100, cycles_no: int = 3,
-            population_size: int = 100, mutation_variance: float = 0.1,
+            cycles_no: int = 3,
+            initial_population_size: int = 100, mutation_variance: float = 0.1,
             gene_replacement_probability: float = 0.5,
             select_method: str = 'TO',
-            number_of_paths_per_demand: int = 3
+            number_of_paths_per_demand: int = 2
     ):
 
-        self.range = range_r
-        self.population_size = population_size
+        self.initial_population_size = initial_population_size
         self.cycles_no = cycles_no
         self.mutation_variance = mutation_variance
         self.gene_replacement_probability = gene_replacement_probability
         self.selection_method = select_method
-        self.best_specimen_after_cicles = []
+        self.best_specimen_after_cycles = []
 
         # Create set of predefined paths for each demand
         self.demands = demands.copy(deep=True)
         net_graph = nx.from_pandas_edgelist(edges, source='CityA', target='CityB')
         self.demands['possible_paths'] = self.demands.apply(lambda demand: get_possible_paths_for_demand(net_graph,
-                                                                                                         city_a=demand['CityA'],
-                                                                                                         city_b=demand['CityB'],
+                                                                                                         city_a=demand[
+                                                                                                             'CityA'],
+                                                                                                         city_b=demand[
+                                                                                                             'CityB'],
                                                                                                          k_paths=number_of_paths_per_demand),
                                                             axis=1)
-        print('self.demands\n', self.demands)
+        # print('self.demands\n', self.demands)
+        # print(self.demands.iloc[0]['possible_paths'])
+        # print(self.demands.iloc[1]['possible_paths'])
 
         # Initiate population with random transponders set
-        self.population = [Chromosome(edges) for _ in range(population_size)]
-
-        # Main algorithm's loop
-        self.do_cycles(self.cycles_no)
+        self.population = [Chromosome(edges) for _ in range(initial_population_size)]
 
     def selection(self):
         """
@@ -68,7 +71,7 @@ class EvolutionaryAlgorithm:
         """
         new_gen = []
 
-        if self.selection_method == 'TO':  # Selekcja Turniejowa
+        if self.selection_method == 'TO':  # Tournament Selection
             for i in range(int(len(self.population) / 4)):
                 # Porównujemy 4 kolejne punkty, najlepszy z nich przechodzi
                 # dalej i zostaje w populacji
@@ -78,7 +81,6 @@ class EvolutionaryAlgorithm:
                 for j in range(4):
                     if costs[j] == min(costs):
                         new_gen.append(self.population[4 * i + j])
-                        break
             return new_gen
         else:
             return (print(
@@ -103,11 +105,12 @@ class EvolutionaryAlgorithm:
             if random.SystemRandom().uniform(0, 1) < p_e:
                 return transponders_set
             else:
-                return other_parent.loc[(other_parent['CityA'] == city_a) & (other_parent['CityB'] == city_b), 'transponders'].iloc[0]
+                return other_parent.loc[
+                    (other_parent['CityA'] == city_a) & (other_parent['CityB'] == city_b), 'transponders'].iloc[0]
 
-        for i in range(self.population_size):
-            x = self.population[random.SystemRandom().randint(0, len(self.population)-1)]
-            y = self.population[random.SystemRandom().randint(0, len(self.population)-1)]
+        for i in range(self.initial_population_size):
+            x = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
+            y = self.population[random.SystemRandom().randint(0, len(self.population) - 1)]
 
             # print('parent x:', x.df)
             # print('parent y:', y.df)
@@ -135,31 +138,32 @@ class EvolutionaryAlgorithm:
         mutants = self.population
         for i in range(len(self.population)):
             for j in mutants[i].df["transponders"]:
-            
-                j["10G"] += int(np.random.normal(0,self.mutation_variance))
-                j["40G"] += int(np.random.normal(0,self.mutation_variance))
-                j["100G"]+= int(np.random.normal(0,self.mutation_variance))
+                j["10G"] += int(np.random.normal(0, self.mutation_variance))
+                j["40G"] += int(np.random.normal(0, self.mutation_variance))
+                j["100G"] += int(np.random.normal(0, self.mutation_variance))
             mutants.append(self.population[i])
 
         return self.population + mutants
 
-    def do_cycles(self, gens=1):
+    def do_cycles(self):
         """
         Funkcja wykonuje pętle algorytmu ewolucyjnego i znajduje
         osobniki lepsze od poprzedniej generacji. Gens jest liczbą
         pokoleń następujących po inicjacji
         """
-        for i in range(gens):
+        for i in range(self.cycles_no):
+            # print('population size at cycle start', len(self.population))
             self.population = self.cross()
             self.population = self.mutate()
             self.population = self.selection()
-            if i%(self.cycles_no/10) == (self.cycles_no/10) - 1:
-                self.best_specimen_after_cicles.append(self.select_best_chromosome())
+            if i > 0 and i % int(self.cycles_no/10) == 0:
+                print(f'completed cycle {i}')
+                self.best_specimen_after_cycles.append((i, self.select_best_chromosome()[1]))
 
         return self.population
 
     def select_best_chromosome(self):
-        min_cost = 99999999
+        min_cost = float('inf')  # set initial value of min cost to infinity
         best_chromosome = None
         for c in self.population:
             cost = c.calculate_solution_cost()
@@ -168,7 +172,7 @@ class EvolutionaryAlgorithm:
                 best_chromosome = c
         return best_chromosome, min_cost
 
-    def bests_after_cycles(self):
-        print("Min Cost after cycles:", len(self.best_specimen_after_cicles))
-        for i in range(10):
-            print("\t", int((i+1)*self.cycles_no/10), ": ", self.best_specimen_after_cicles[i][1])
+    def best_after_cycles(self):
+        print(f"Change of min cost over cycles:\n", '\tcycle : cost')
+        for i, cost in self.best_specimen_after_cycles:
+            print("\t", i, ": ", cost)
