@@ -44,9 +44,6 @@ def find_cheapest_set_of_transponders_for_edge(demand: float, transponders_cost:
     for var in model.variables():
         transponders_set[var.name] = int(var.value())
 
-    # print('\ndemand', demand)
-    # print(f"total transponders cost: {total_cost}")
-    # print('transponders_set', transponders_set)
     return transponders_set, total_cost
 
 

@@ -55,7 +55,8 @@ class EvolutionaryAlgorithm:
         # Initiate population with random transponders set
         self.population = [Chromosome(self.demands) for _ in range(self.mi_size)]
         self.best_so_far = self.find_best_in_current_population()  # best_so_far - tuple of (Chromosome, cost)
-        print('Cost of best solution in initial population:', self.best_so_far[1])
+        self.best_specimen_after_cycles.append((0, self.best_so_far[1]))
+        # print('Cost of best solution in initial population:', self.best_so_far[1])
 
     def selection(self):
         """
@@ -70,22 +71,6 @@ class EvolutionaryAlgorithm:
                 pairs.append((c, c.calculate_solution_cost()[0]))
             pairs.sort(key=lambda x: x[1], reverse=True)
             return [p[0] for p in pairs][:self.lambda_size]
-        elif self.selection_method == 'TO':  # Tournament Selection
-            new_gen = []
-            print('population size', len(self.population))
-            param_i = 2
-            for i in range(int(len(self.population) / param_i)):
-                # Porównujemy param_i kolejne punkty, najlepszy z nich przechodzi
-                # dalej i zostaje w populacji
-                costs = []
-                for j in range(param_i):
-                    costs.append(self.population[param_i * i + j].calculate_solution_cost()[0])
-                for j in range(param_i):
-                    if costs[j] == min(costs):
-                        new_gen.append(self.population[param_i * i + j])
-                        break
-            print('new_gen size', len(new_gen))
-            return new_gen
         else:
             return (print(
                 "Error: Selection methods\n",
@@ -123,10 +108,6 @@ class EvolutionaryAlgorithm:
                                                                           e['chosen_path'], y.df,
                                                                           self.gene_replacement_probability),
                                                      axis=1)
-
-            # print('parent x:', x.df)
-            # print('parent y:', y.df)
-            # print('child:', child_df)
             new_generation.append(Chromosome(child_df))
 
         return new_generation
@@ -162,16 +143,14 @@ class EvolutionaryAlgorithm:
         and finally selects µ best chromosomes as new population.
         """
         for i in range(self.cycles_no):
-            # print('population size at cycle start', len(self.population))
             offspring = self.selection()
             crossed_offspring = self.cross(offspring)
             mutants = self.mutate(crossed_offspring)
             self.select_best_chromosomes_for_new_population(mutants)
 
             if self.cycles_no < 10 or (i % int(self.cycles_no / 10) == 0):
-                print(f'completed cycle {i}')
-                self.best_specimen_after_cycles.append((i, self.best_so_far[1]))
-                print('current min cost:', self.best_so_far[1])
+                # print(f'completed cycle {i+1}, best cost so far: {self.best_so_far[1]}')
+                self.best_specimen_after_cycles.append((i+1, self.best_so_far[1]))
 
         return self.best_so_far
 
