@@ -5,11 +5,6 @@ from typing import List
 
 from chromosome import Chromosome
 
-'''
-Original algorithm: Tomasz Pawlak
-Adjustment to optical net problem: Vladyslav Kyryk
-'''
-
 
 def get_possible_paths_for_demand(graph: nx.Graph, city_a: str, city_b: str, k_paths: int):
     """
@@ -52,10 +47,8 @@ class EvolutionaryAlgorithm:
         self.demands = demands.copy(deep=True)
         net_graph = nx.from_pandas_edgelist(edges, source='CityA', target='CityB')
         self.demands['possible_paths'] = self.demands.apply(lambda demand: get_possible_paths_for_demand(net_graph,
-                                                                                                         city_a=demand[
-                                                                                                             'CityA'],
-                                                                                                         city_b=demand[
-                                                                                                             'CityB'],
+                                                                                                         city_a=demand['CityA'],
+                                                                                                         city_b=demand['CityB'],
                                                                                                          k_paths=number_of_paths_per_demand),
                                                             axis=1)
 
@@ -66,42 +59,46 @@ class EvolutionaryAlgorithm:
 
     def selection(self):
         """
-        Function cuts best points from selection and mutation in aim of 
-        continue population of the best points
+        Select λ chromosomes from current population as offspring.
         """
 
         if self.selection_method == 'RS':  # Random Selection
             return random.SystemRandom().choices(self.population, k=self.lambda_size)
+        elif self.selection_method == 'BS':  # Best Selection
+            pairs = []
+            for c in self.population:
+                pairs.append((c, c.calculate_solution_cost()[0]))
+            pairs.sort(key=lambda x: x[1], reverse=True)
+            return [p[0] for p in pairs][:self.lambda_size]
         elif self.selection_method == 'TO':  # Tournament Selection
             new_gen = []
             print('population size', len(self.population))
-            for i in range(int(len(self.population) / 4)):
-                # Porównujemy 4 kolejne punkty, najlepszy z nich przechodzi
+            param_i = 2
+            for i in range(int(len(self.population) / param_i)):
+                # Porównujemy param_i kolejne punkty, najlepszy z nich przechodzi
                 # dalej i zostaje w populacji
                 costs = []
-                for j in range(4):
-                    costs.append(self.population[4 * i + j].calculate_solution_cost()[0])
-                for j in range(4):
+                for j in range(param_i):
+                    costs.append(self.population[param_i * i + j].calculate_solution_cost()[0])
+                for j in range(param_i):
                     if costs[j] == min(costs):
-                        new_gen.append(self.population[4 * i + j])
+                        new_gen.append(self.population[param_i * i + j])
                         break
             print('new_gen size', len(new_gen))
             return new_gen
         else:
             return (print(
                 "Error: Selection methods\n",
-                "TO - tournament selection\n"
+                "RS - random selection\n",
+                "BS - best selection\n"
             ))
 
     def cross(self, offspring: List[Chromosome]):
         """
-        Generuje nową populację krzyżując stare wartości osobników ze sobą, a
-        potem przypisując ich wartości do nowych encji, które potem zostają
-        dodane do tabeli nowej populacji punktów. Do encji dodajemy wartości
-        połowy długości tabel aby uzyskać lepsze pomieszanie cech.
+        Randomly select pairs of chromosomes from offspring
+        and cross them over with probability p_e (gene_replacement_probability).
         """
         new_generation = []
-        offspring_number = 2
 
         def apply_func(city_a, city_b, chosen_path_parent_x, parent_y, p_e):
             """
@@ -136,9 +133,7 @@ class EvolutionaryAlgorithm:
 
     def mutate(self, new_generation: List[Chromosome]):
         """
-        Funkcja generuje odchyły od punktu, czyli zmiany w ilości 
-        transponderów w chromosomie zgodnie z rozkładem normalnym 
-        o wariancji równej mutation_variance
+        Randomly choose one of possible paths for each chromosome with probability p_m (mutation_probability).
         """
         mutants = new_generation.copy()
         for chromosome in mutants:
@@ -160,9 +155,11 @@ class EvolutionaryAlgorithm:
 
     def do_cycles(self):
         """
-        Funkcja wykonuje pętle algorytmu ewolucyjnego i znajduje
-        osobniki lepsze od poprzedniej generacji. Gens jest liczbą
-        pokoleń następujących po inicjacji
+        Makes predefined number of iterations of algorithm's main loop.
+        Firstly it selects λ chromosomes from current population as offspring,
+        then crosses them over,
+        then mutates,
+        and finally selects µ best chromosomes as new population.
         """
         for i in range(self.cycles_no):
             # print('population size at cycle start', len(self.population))
