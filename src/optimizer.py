@@ -40,8 +40,10 @@ class Optimizer:
                 results = [(pool.apply_async(self.run_algorithm, args=(mi, lmbd)), mi, lmbd)
                            for mi in self.mi_set
                            for lmbd in self.lambda_set]
+                print('waiting 7 minutes for tasks to finish...')
+                time.sleep(7*60)  # wait some time to run algorithms
                 while False in [r.ready() for r, _, _ in results]:
-                    print('waiting for tasks to finish...')
+                    print('waiting 1 more minute for tasks to finish...')
                     time.sleep(60)
                 results = [(r.get(), m, l) for r, m, l in results]
                 print('results', results)
