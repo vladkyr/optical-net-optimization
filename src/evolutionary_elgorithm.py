@@ -56,7 +56,7 @@ class EvolutionaryAlgorithm:
         self.population = [Chromosome(self.demands) for _ in range(self.mi_size)]
         self.best_so_far = self.find_best_in_current_population()  # best_so_far - tuple of (Chromosome, cost)
         self.best_specimen_after_cycles.append((0, self.best_so_far[1]))
-        # print('Cost of best solution in initial population:', self.best_so_far[1])
+        # print('Cost of the best solution in initial population:', self.best_so_far[1])
 
     def selection(self):
         """

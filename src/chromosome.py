@@ -14,13 +14,6 @@ def pairwise(iterable):
     return zip(a, b)
 
 
-def select_random_transformers_set(transponders_list: List[str]):
-    random_choice = Counter(
-        [random.SystemRandom().choice(transponders_list) for _ in range(random.SystemRandom().randint(2, 4))])
-    key_order = ['10G', '40G', '100G']
-    return {k: random_choice[k] for k in key_order if k in random_choice}  # sort keys in transponders dict
-
-
 def find_cheapest_set_of_transponders_for_edge(demand: float, transponders_cost: dict):
     # Create the model
     model = LpProblem(name="transponder-min-cost-problem", sense=LpMinimize)
